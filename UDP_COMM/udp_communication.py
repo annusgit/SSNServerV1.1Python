@@ -20,6 +20,7 @@ SSN_MessageType_to_ID = {
 
 SSN_MessageID_to_Type = {x:y for y,x in SSN_MessageType_to_ID.items()}
 SSN_ActivityLevelID_to_Type = {0: 'NORMAL', 1: 'ABNORMAL'}
+offset = 12
 
 
 class UDP_COMM:
@@ -85,19 +86,22 @@ class UDP_COMM:
             temperature = utils.get_word_from_bytes(high_byte=node_message[3], low_byte=node_message[4]) / 10.0
             humidity = utils.get_word_from_bytes(high_byte=node_message[5], low_byte=node_message[6]) / 10.0
             # print(temperature, humidity)
-            ssn_uptime = utils.get_int_from_bytes(highest_byte=node_message[35], higher_byte=node_message[36], high_byte=node_message[37], low_byte=node_message[38])
-            abnormal_activity = node_message[39]
+            ssn_uptime = utils.get_int_from_bytes(highest_byte=node_message[55], higher_byte=node_message[56], high_byte=node_message[57], low_byte=node_message[58])
+            abnormal_activity = node_message[59]
             # get machine specific information
-            machine_load_currents, machine_load_percentages, machine_status, machine_status_timestamp = list(), list(), list(), list()
+            machine_load_currents, machine_load_percentages, machine_status, machine_state_timestamp, machine_state_duration = list(), list(), list(), list(), list()
+            # print(node_message)
             for i in range(4):
-                machine_load_currents.append(node_message[7+i*7])
-                machine_load_percentages.append(node_message[8+i*7])
-                machine_status.append(node_message[9+i*7])
-                machine_status_timestamp.append(utils.get_int_from_bytes(highest_byte=node_message[10+i*7], higher_byte=node_message[11+i*7],
-                                                                         high_byte=node_message[12+i*7], low_byte=node_message[13+i*7]))
+                machine_load_currents.append(utils.get_word_from_bytes(high_byte=node_message[7+i*offset], low_byte=node_message[8+i*offset]) / 100.0)
+                machine_load_percentages.append(node_message[9+i*offset])
+                machine_status.append(node_message[10+i*offset])
+                machine_state_timestamp.append(utils.get_int_from_bytes(highest_byte=node_message[11+i*offset], higher_byte=node_message[12+i*offset],
+                                                                         high_byte=node_message[13+i*offset], low_byte=node_message[14+i*offset]))
+                machine_state_duration.append(utils.get_int_from_bytes(highest_byte=node_message[15+i*offset], higher_byte=node_message[16+i*offset],
+                                                                       high_byte=node_message[17+i*offset], low_byte=node_message[18+i*offset]))
                 pass
             return node_message_id, [node_id, temperature, humidity, ssn_uptime, abnormal_activity, *machine_load_currents, *machine_load_percentages, *machine_status,
-                                     *machine_status_timestamp]
+                                     *machine_state_timestamp, *machine_state_duration]
         return
 
     def read_udp_message(self):

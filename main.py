@@ -3,7 +3,7 @@ from GUI_utilities.SSN_Server_GUI import SSN_Server_UI
 
 server_end = ('192.168.0.100', 9999)
 node_end = ('', 8888)
-CURRENT_SENSOR_RATINGS = ['NONE', 5, 10, 15, 20, 25, 30, 50, 60, 100]
+CURRENT_SENSOR_RATINGS = ['NONE', 5, 10, 15, 20, 25, 30, 50, 60, 100, 250]
 SSN_DEFAULT_CONFIGS = [9, 90, 10, 9, 95, 6, 6, 27, 2, 6, 28, 3, 1]
 
 

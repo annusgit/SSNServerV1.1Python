@@ -221,7 +221,7 @@ class SSN_Server_UI():
                 this_sensor_rating = self.machine_ratings[i].get()
                 this_sensor_rating = int(this_sensor_rating) if this_sensor_rating != 'NONE' else 0
                 self.configs.append(this_sensor_rating)
-                self.configs.append(int(self.machine_thresholds[i].get()))
+                self.configs.append(int(10*float(self.machine_thresholds[i].get())))
                 self.configs.append(int(self.machine_maxloads[i].get()))
                 pass
             self.configs.append(int(self.reportinterval_text_entry.get()))
@@ -432,13 +432,13 @@ class SSN_Server_UI():
                     self.machine_status[node_index][i].update(new_text_string=Machine_State_ID_to_State[params[13+i]])
                     state_timestamp_tick = params[17+i]
                     if state_timestamp_tick != 0:
-                        elapsed_time_in_state = self.servertimeofday_Tick - state_timestamp_tick
+                        # elapsed_time_in_state = self.servertimeofday_Tick - state_timestamp_tick
                         good_time = datetime.datetime(1, 1, 1) + datetime.timedelta(seconds=state_timestamp_tick)
                         exact_time_strings = ["{}:{}:{}".format(good_time.hour, good_time.minute, good_time.second), "{}/{}/{}".format(good_time.day, good_time.month, good_time.year)]
                     else:
-                        elapsed_time_in_state = state_timestamp_tick
+                        # elapsed_time_in_state = state_timestamp_tick
                         exact_time_strings = ["0:0:0", "0/0/0"]
-                    self.machine_timeinstate[node_index][i].update(new_text_string=elapsed_time_in_state)
+                    self.machine_timeinstate[node_index][i].update(new_text_string=params[21+i])
                     self.machine_sincewheninstate[node_index][i].update(new_text_strings=exact_time_strings)
                     pass
                 pass
