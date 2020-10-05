@@ -1,15 +1,16 @@
-
+import csv
 import time
 import datetime
 from tkinter import *  # Normal Tkinter.* widgets are not themed!
 from ttkthemes import ThemedTk, ThemedStyle
 from tkinter import ttk
 from UDP_COMM.udp_communication import *
+from SERIAL_COMM.serial_communication import *
 from MAC_utilities.MAC_utils import get_MAC_addresses_from_file
 
 vertical_spacing = 21
 horizontal_spacing = 120
-Machine_State_ID_to_State = {0: 'OFF', 1: 'IDLE', 2: 'ON', 3:'ERROR'}
+Machine_State_ID_to_State = {0: 'OFF', 1: 'IDLE', 2: 'ON'}
 
 
 class SSN_Button_Widget:
@@ -121,9 +122,11 @@ class SSN_Server_UI():
         self.root_window.geometry(window_geometry)
         self.window_width = self.root_window.winfo_screenwidth()
         self.window_height = self.root_window.winfo_screenheight()
-        # essential UDP communicator
+        # essential communicators
         self.udp_comm = None
+        self.serial_comm = None
         self.COMM = False
+        self.csv_data_recording = None
         ############# if we have more than one node
         self.NodeCountInGUI = 0
         self.message_type_text = list()
@@ -362,7 +365,11 @@ class SSN_Server_UI():
         self.node_select_radio_button.radio_buttons[0].invoke()
         pass
 
-    def setup_communication(self, server_end):
+    def setup_serial_communication(self, serial_port='COM5', baudrate=19200, log_file='../serial_log-110920-130920.txt'):
+        self.serial_comm = SERIAL_COMM(serial_port, baudrate, log_file)
+        pass
+
+    def setup_udp_communication(self, server_end):
         # essential UDP communicator
         self.udp_comm = UDP_COMM()
         connection_status = self.udp_comm.udp_setup_connection(server_address=server_end[0], server_port=server_end[1])
@@ -370,11 +377,21 @@ class SSN_Server_UI():
             print("Cannot Connect to Network!!!")
             return
         # invoke it just once
-        self.read_udp_message_and_update_UI()
+        self.read_messages_and_update_UI()
         self.COMM = True
         pass
 
-    def read_udp_message_and_update_UI(self):
+    def setup_csv_data_recording(self, csv_file):
+        this_date = datetime.datetime.fromtimestamp(int(round(time.time())))
+        file_name, extension = os.path.splitext(csv_file)
+        self.csv_data_file = file_name
+        self.csv_data_recording = True
+        pass
+
+    def read_messages_and_update_UI(self):
+        # check serial comm for messages
+        if self.serial_comm:
+            self.serial_comm.log()
         self.servertimeofday_Tick = int(round(time.time()))
         self.servertimeofday_text.update(new_text_string=self.servertimeofday_Tick)
         # receive the incoming message
@@ -412,7 +429,6 @@ class SSN_Server_UI():
                     # self.config_button.config(bg='light green')
                     pass
                 pass
-
             # status update message brings the ssn heartbeat status
             elif message_id == SSN_MessageType_to_ID['STATUS_UPDATE']:
                 print('\033[34m' + "Received Status Update from SSN-{}".format(node_index+1))
@@ -426,6 +442,7 @@ class SSN_Server_UI():
                     self.abnormalactivity_text[node_index].change_text_color(new_color='green')
                 else:
                     self.abnormalactivity_text[node_index].change_text_color(new_color='red')
+                machine_state_timestamps = []
                 for i in range(4):
                     self.machine_loadcurrents[node_index][i].update(new_text_string=params[5+i])
                     self.machine_percentageloads[node_index][i].update(new_text_string=params[9+i])
@@ -433,17 +450,36 @@ class SSN_Server_UI():
                     state_timestamp_tick = params[17+i]
                     if state_timestamp_tick != 0:
                         # elapsed_time_in_state = self.servertimeofday_Tick - state_timestamp_tick
-                        good_time = datetime.datetime(1, 1, 1) + datetime.timedelta(seconds=state_timestamp_tick)
+                        good_time = datetime.datetime.fromtimestamp(state_timestamp_tick)
                         exact_time_strings = ["{}:{}:{}".format(good_time.hour, good_time.minute, good_time.second), "{}/{}/{}".format(good_time.day, good_time.month, good_time.year)]
                     else:
                         # elapsed_time_in_state = state_timestamp_tick
                         exact_time_strings = ["0:0:0", "0/0/0"]
+                    machine_state_timestamps.append(exact_time_strings)
                     self.machine_timeinstate[node_index][i].update(new_text_string=params[21+i])
-                    self.machine_sincewheninstate[node_index][i].update(new_text_strings=exact_time_strings)
+                    self.machine_sincewheninstate[node_index][i].update(new_text_strings=machine_state_timestamps[i])
+                    pass
+                # append this data to our CSV file
+                if self.csv_data_recording:
+                    # insertiontimestamp, node_id, node_uptime, activitylevel,
+                    # temperature, humidity,
+                    # M1_load, M1_load%, M1_state, M1_statetimestamp, M1_stateduration,
+                    # M2_*...
+                    server_time_of_the_day = datetime.datetime.fromtimestamp(self.servertimeofday_Tick)
+                    data_packet = [server_time_of_the_day, params[0], datetime.datetime.fromtimestamp(params[3]), activity_level,
+                                   params[1], params[2],
+                                   params[5], params[9], params[13], datetime.datetime.fromtimestamp(params[17]), params[21],
+                                   params[6], params[10], params[14], datetime.datetime.fromtimestamp(params[18]), params[22]]
+                    with open(self.csv_data_file+"-{}-{}-{}".format(server_time_of_the_day.day, server_time_of_the_day.month, server_time_of_the_day.year)+".csv",
+                              'a', newline="") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(data_packet)
+                        pass
                     pass
                 pass
             pass
         # recall this method after another second
-        self.root_window.after(200, self.read_udp_message_and_update_UI)
+        self.root_window.after(200, self.read_messages_and_update_UI)
         pass
     pass
+

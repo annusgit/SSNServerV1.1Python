@@ -19,7 +19,7 @@ SSN_MessageType_to_ID = {
 }
 
 SSN_MessageID_to_Type = {x:y for y,x in SSN_MessageType_to_ID.items()}
-SSN_ActivityLevelID_to_Type = {0: 'NORMAL', 1: 'ABNORMAL'}
+SSN_ActivityLevelID_to_Type = {0: 'NORMAL', 1: 'ABNORMAL', 2: 'TREADFAIL', 3: 'TCOMMFAIL'}
 offset = 12
 
 
