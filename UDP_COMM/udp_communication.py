@@ -85,20 +85,20 @@ class UDP_COMM:
             # get node specific information
             temperature = utils.get_word_from_bytes(high_byte=node_message[3], low_byte=node_message[4]) / 10.0
             humidity = utils.get_word_from_bytes(high_byte=node_message[5], low_byte=node_message[6]) / 10.0
-            # print(temperature, humidity)
-            ssn_uptime = utils.get_int_from_bytes(highest_byte=node_message[55], higher_byte=node_message[56], high_byte=node_message[57], low_byte=node_message[58])
-            abnormal_activity = node_message[59]
+            state_flags = node_message[7]
+            ssn_uptime = utils.get_int_from_bytes(highest_byte=node_message[56], higher_byte=node_message[57], high_byte=node_message[58], low_byte=node_message[59])
+            abnormal_activity = node_message[60]
             # get machine specific information
             machine_load_currents, machine_load_percentages, machine_status, machine_state_timestamp, machine_state_duration = list(), list(), list(), list(), list()
             # print(node_message)
             for i in range(4):
-                machine_load_currents.append(utils.get_word_from_bytes(high_byte=node_message[7+i*offset], low_byte=node_message[8+i*offset]) / 100.0)
-                machine_load_percentages.append(node_message[9+i*offset])
-                machine_status.append(node_message[10+i*offset])
-                machine_state_timestamp.append(utils.get_int_from_bytes(highest_byte=node_message[11+i*offset], higher_byte=node_message[12+i*offset],
-                                                                         high_byte=node_message[13+i*offset], low_byte=node_message[14+i*offset]))
-                machine_state_duration.append(utils.get_int_from_bytes(highest_byte=node_message[15+i*offset], higher_byte=node_message[16+i*offset],
-                                                                       high_byte=node_message[17+i*offset], low_byte=node_message[18+i*offset]))
+                machine_load_currents.append(utils.get_word_from_bytes(high_byte=node_message[8+i*offset], low_byte=node_message[9+i*offset]) / 100.0)
+                machine_load_percentages.append(node_message[10+i*offset])
+                machine_status.append(node_message[11+i*offset])
+                machine_state_timestamp.append(utils.get_int_from_bytes(highest_byte=node_message[12+i*offset], higher_byte=node_message[13+i*offset],
+                                                                         high_byte=node_message[14+i*offset], low_byte=node_message[15+i*offset]))
+                machine_state_duration.append(utils.get_int_from_bytes(highest_byte=node_message[16+i*offset], higher_byte=node_message[17+i*offset],
+                                                                       high_byte=node_message[18+i*offset], low_byte=node_message[19+i*offset]))
                 pass
             return node_message_id, [node_id, temperature, humidity, ssn_uptime, abnormal_activity, *machine_load_currents, *machine_load_percentages, *machine_status,
                                      *machine_state_timestamp, *machine_state_duration]
