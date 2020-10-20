@@ -1,12 +1,14 @@
-import csv
-import time
-import datetime
-from tkinter import *  # Normal Tkinter.* widgets are not themed!
+from MAC_utilities import get_MAC_addresses_from_file
 from ttkthemes import ThemedTk, ThemedStyle
+from SERIAL_COMM import *
 from tkinter import ttk
-from UDP_COMM.udp_communication import *
-from SERIAL_COMM.serial_communication import *
-from MAC_utilities.MAC_utils import get_MAC_addresses_from_file
+from UDP_COMM import *
+from tkinter import *  # Normal Tkinter.* widgets are not themed!
+from MQTT import *
+import datetime
+import time
+import csv
+
 
 vertical_spacing = 21
 horizontal_spacing = 120
@@ -124,8 +126,10 @@ class SSN_Server_UI():
         self.window_height = self.root_window.winfo_screenheight()
         # essential communicators
         self.udp_comm = None
+        self.mqtt_comm = None
         self.serial_comm = None
-        self.COMM = False
+        self.use_udp = False
+        self.use_mqtt = False
         self.csv_data_recording = None
         ############# if we have more than one node
         self.NodeCountInGUI = 0
@@ -202,9 +206,9 @@ class SSN_Server_UI():
         pass
 
     def send_mac_btn_clicked(self):
-        if self.COMM:
-            # clear node status panel
-            self.clear_status_panel()
+        # clear node status panel
+        self.clear_status_panel()
+        if self.use_udp:
             # construct and send set_mac message
             try:
                 self.udp_comm.send_set_mac_message(node_index=self.node_select_radio_button.getSelectedNode() - 1, mac_address=self.ssn_mac_dropdown.get())
@@ -212,22 +216,32 @@ class SSN_Server_UI():
             except IndexError:
                 print('\033[31m' + "SSN Network Node Count: {}. Can't Send to SSN Indexed: {}".format(self.udp_comm.getNodeCountinNetwork(),
                                                                                                       self.node_select_radio_button.getSelectedNode() - 1))
+                pass
+        elif self.use_mqtt:
+            # construct and send set_mac message
+            try:
+                self.mqtt_comm.send_set_mac_message(mac_address=self.ssn_mac_dropdown.get())
+                print('\033[34m' + "Sent MAC to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
+            except error:
+                print('\033[31m' + f"{error}")
+                pass
+            pass
         pass
 
     def send_config_btn_clicked(self):
-        if self.COMM:
-            # clear node status panel
-            self.clear_status_panel()
-            # get the configs from the GUI
-            self.configs = list()
-            for i in range(4):
-                this_sensor_rating = self.machine_ratings[i].get()
-                this_sensor_rating = int(this_sensor_rating) if this_sensor_rating != 'NONE' else 0
-                self.configs.append(this_sensor_rating)
-                self.configs.append(int(10*float(self.machine_thresholds[i].get())))
-                self.configs.append(int(self.machine_maxloads[i].get()))
-                pass
-            self.configs.append(int(self.reportinterval_text_entry.get()))
+        # clear node status panel
+        self.clear_status_panel()
+        # get the configs from the GUI
+        self.configs = list()
+        for i in range(4):
+            this_sensor_rating = self.machine_ratings[i].get()
+            this_sensor_rating = int(this_sensor_rating) if this_sensor_rating != 'NONE' else 0
+            self.configs.append(this_sensor_rating)
+            self.configs.append(int(10 * float(self.machine_thresholds[i].get())))
+            self.configs.append(int(self.machine_maxloads[i].get()))
+            pass
+        self.configs.append(int(self.reportinterval_text_entry.get()))
+        if self.use_udp:
             try:
                 self.udp_comm.send_set_config_message(node_index=self.node_select_radio_button.getSelectedNode()-1, config=self.configs)
                 print('\033[34m' + "Sent CONFIG to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
@@ -236,10 +250,19 @@ class SSN_Server_UI():
                                                                                                       self.node_select_radio_button.getSelectedNode() - 1))
             # change button color
             # self.config_button.config(bg='white')
+        elif self.use_mqtt:
+            # construct and send set_mac message
+            try:
+                self.mqtt_comm.send_set_config_message(config=self.configs)
+                print('\033[34m' + "Sent CONFIG to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
+            except error:
+                print('\033[31m' + f"{error}")
+                pass
+            pass
         pass
 
     def send_timeofday_btn_clicked(self):
-        if self.COMM:
+        if self.use_udp:
             try:
                 # self.udp_comm.send_set_timeofday_message(node_index=self.node_select_radio_button.getSelectedNode() - 1, current_time=self.server_time_now)
                 self.udp_comm.send_set_timeofday_Tick_message(node_index=self.node_select_radio_button.getSelectedNode() - 1,
@@ -248,10 +271,21 @@ class SSN_Server_UI():
             except IndexError:
                 print('\033[31m' + "SSN Network Node Count: {}. Can't Send to SSN Indexed: {}".format(self.udp_comm.getNodeCountinNetwork(),
                                                                                                       self.node_select_radio_button.getSelectedNode() - 1))
+        elif self.use_mqtt:
+            # construct and send set_mac message
+            try:
+                self.mqtt_comm.send_set_timeofday_Tick_message(current_tick=utils.get_bytes_from_int(self.servertimeofday_Tick))
+                print('\033[34m' + "Sent Time of Day to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
+            except error:
+                print('\033[31m' + f"{error}")
+                pass
+            pass
         pass
 
     def debug_reset_eeprom_btn_clicked(self):
-        if self.COMM:
+        # clear node status panel
+        self.clear_status_panel()
+        if self.use_udp:
             # send message and clear the status texts
             try:
                 self.udp_comm.send_debug_reset_eeprom_message(node_index=self.node_select_radio_button.getSelectedNode() - 1)
@@ -259,12 +293,21 @@ class SSN_Server_UI():
             except IndexError:
                 print('\033[31m' + "SSN Network Node Count: {}. Can't Send to SSN Indexed: {}".format(self.udp_comm.getNodeCountinNetwork(),
                                                                                                       self.node_select_radio_button.getSelectedNode() - 1))
-            # clear node status panel
-            self.clear_status_panel()
+        elif self.use_mqtt:
+            # construct and send set_mac message
+            try:
+                self.mqtt_comm.send_debug_reset_eeprom_message()
+                print('\033[34m' + "Sent CLEAR EEPROM to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
+            except error:
+                print('\033[31m' + f"{error}")
+                pass
+            pass
         pass
 
     def debug_reset_ssn_btn_clicked(self):
-        if self.COMM:
+        # clear node status panel
+        self.clear_status_panel()
+        if self.use_udp:
             # send message and clear statuss
             try:
                 self.udp_comm.send_debug_reset_ssn_message(node_index=self.node_select_radio_button.getSelectedNode() - 1)
@@ -272,8 +315,15 @@ class SSN_Server_UI():
             except IndexError:
                 print('\033[31m' + "SSN Network Node Count: {}. Can't Send to SSN Indexed: {}".format(self.udp_comm.getNodeCountinNetwork(),
                                                                                                       self.node_select_radio_button.getSelectedNode() - 1))
-            # clear node status panel
-            self.clear_status_panel()
+        elif self.use_mqtt:
+            # construct and send set_mac message
+            try:
+                self.mqtt_comm.send_debug_reset_ssn_message()
+                print('\033[34m' + "Sent RESET to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
+            except error:
+                print('\033[31m' + f"{error}")
+                pass
+            pass
         pass
 
     def setup_buttons(self):
@@ -376,9 +426,17 @@ class SSN_Server_UI():
         if connection_status is None:
             print("Cannot Connect to Network!!!")
             return
+        self.use_udp = True
         # invoke it just once
         self.read_messages_and_update_UI()
-        self.COMM = True
+        pass
+
+    def setup_mqtt_communication(self, client_id, host="192.168.0.120"):
+        self.mqtt_comm = MQTT(client_id="SSNSuperUser", host="192.168.0.120")
+        self.mqtt_comm.client.loop_start()
+        self.use_mqtt = True
+        # invoke it just once
+        self.read_messages_and_update_UI()
         pass
 
     def setup_csv_data_recording(self, csv_file):
@@ -395,86 +453,100 @@ class SSN_Server_UI():
         self.servertimeofday_Tick = int(round(time.time()))
         self.servertimeofday_text.update(new_text_string=self.servertimeofday_Tick)
         # receive the incoming message
-        node_index, message_id, params = self.udp_comm.read_udp_message()
-        # check if a valid message was received or not
-        if node_index == -1 and message_id == -1:
-            self.no_connection += 1
-            if self.no_connection > 10:
-                self.no_connection = 0
-                print('\033[30m' + "XXX Nothing Received XXX")
-            pass
-        else:
-            self.no_connection = 0
-            # message type and node id will always be displayed
-            self.message_type_text[node_index].update(new_text_string=SSN_MessageID_to_Type[message_id], justification='left')
-            self.nodeid_text[node_index].update(new_text_string=params[0])
-            # basic get messages received?
-            if message_id == SSN_MessageType_to_ID['GET_MAC']:
-                print('\033[34m' + "Received GET_MAC from SSN-{}".format(node_index+1))
-            elif message_id == SSN_MessageType_to_ID['GET_TIMEOFDAY']:
-                print('\033[34m' + "Received GET_TIMEOFDAY from SSN-{}".format(node_index+1))
-                # automate set time of day
-                print('\033[34m' + "Sending SET_TIMEOFDAY to SSN-{}".format(node_index+1))
+        if self.use_udp:
+            node_index, message_id, params = self.udp_comm.read_udp_message()
+            # check if a valid message was received or not
+            if node_index == -1 and message_id == -1:
+                self.no_connection += 1
+                if self.no_connection > 10:
+                    self.no_connection = 0
+                    print('\033[30m' + "XXX Nothing Received XXX")
+                # recall this method after another second
+                self.root_window.after(200, self.read_messages_and_update_UI)
+                return
+        elif self.use_mqtt:
+            if not self.mqtt_comm.message_queue.qsize():
+                self.no_connection += 1
+                if self.no_connection > 10:
+                    self.no_connection = 0
+                    print('\033[30m' + "XXX Nothing Received XXX")
+                # recall this method after another second
+                self.root_window.after(200, self.read_messages_and_update_UI)
+                return
+            node_index, message_id, params = self.mqtt_comm.message_queue.get()
+        # proceed only if a genuine message is found
+        self.no_connection = 0
+        # message type and node id will always be displayed
+        self.message_type_text[node_index].update(new_text_string=SSN_MessageID_to_Type[message_id], justification='left')
+        self.nodeid_text[node_index].update(new_text_string=params[0])
+        # basic get messages received?
+        if message_id == SSN_MessageType_to_ID['GET_MAC']:
+            print('\033[34m' + "Received GET_MAC from SSN-{}".format(node_index+1))
+        elif message_id == SSN_MessageType_to_ID['GET_TIMEOFDAY']:
+            print('\033[34m' + "Received GET_TIMEOFDAY from SSN-{}".format(node_index+1))
+            # automate set time of day
+            print('\033[34m' + "Sending SET_TIMEOFDAY to SSN-{}".format(node_index+1))
+            if self.use_udp:
                 self.udp_comm.send_set_timeofday_Tick_message(node_index=self.node_select_radio_button.getSelectedNode() - 1,
                                                               current_tick=utils.get_bytes_from_int(self.servertimeofday_Tick))
                 print('\033[34m' + "Sent Time of Day to SSN-{}".format(self.node_select_radio_button.getSelectedNode()))
-            elif message_id == SSN_MessageType_to_ID['GET_CONFIG']:
-                print('\033[34m' + "Received GET_CONFIG from SSN-{}".format(node_index+1))
-
-            # configs have been acknowledged?
-            elif message_id == SSN_MessageType_to_ID['ACK_CONFIG']:
-                configs_acknowledged = params[1]  # it is a list
-                if configs_acknowledged == self.configs:
-                    print('\033[34m' + "Received CONFIG ACK from SSN-{}".format(node_index + 1))
-                    # self.config_button.config(bg='light green')
-                    pass
+            elif self.use_mqtt:
+                self.mqtt_comm.send_set_timeofday_Tick_message(current_tick=utils.get_bytes_from_int(self.servertimeofday_Tick))
+        elif message_id == SSN_MessageType_to_ID['GET_CONFIG']:
+            print('\033[34m' + "Received GET_CONFIG from SSN-{}".format(node_index+1))
+        # configs have been acknowledged?
+        elif message_id == SSN_MessageType_to_ID['ACK_CONFIG']:
+            configs_acknowledged = params[1]  # it is a list
+            if configs_acknowledged == self.configs:
+                print('\033[34m' + "Received CONFIG ACK from SSN-{}".format(node_index + 1))
+                # self.config_button.config(bg='light green')
                 pass
-            # status update message brings the ssn heartbeat status
-            elif message_id == SSN_MessageType_to_ID['STATUS_UPDATE']:
-                print('\033[34m' + "Received Status Update from SSN-{}".format(node_index+1))
-                self.temperature_text[node_index].update(new_text_string=params[1])
-                self.humidity_text[node_index].update(new_text_string=params[2])
-                self.nodeuptime_text[node_index].update(new_text_string=self.servertimeofday_Tick-params[3])  # get the difference of static tick and current tick
-                activity_level = SSN_ActivityLevelID_to_Type[params[4]]
-                # get activity level of the SSN and display properly
-                self.abnormalactivity_text[node_index].update(new_text_string=activity_level)
-                if activity_level == 'NORMAL':
-                    self.abnormalactivity_text[node_index].change_text_color(new_color='green')
+            pass
+        # status update message brings the ssn heartbeat status
+        elif message_id == SSN_MessageType_to_ID['STATUS_UPDATE']:
+            print('\033[34m' + "Received Status Update from SSN-{}".format(node_index+1))
+            self.temperature_text[node_index].update(new_text_string=params[1])
+            self.humidity_text[node_index].update(new_text_string=params[2])
+            self.nodeuptime_text[node_index].update(new_text_string=self.servertimeofday_Tick-params[3])  # get the difference of static tick and current tick
+            activity_level = SSN_ActivityLevelID_to_Type[params[4]]
+            # get activity level of the SSN and display properly
+            self.abnormalactivity_text[node_index].update(new_text_string=activity_level)
+            if activity_level == 'NORMAL':
+                self.abnormalactivity_text[node_index].change_text_color(new_color='green')
+            else:
+                self.abnormalactivity_text[node_index].change_text_color(new_color='red')
+            machine_state_timestamps = []
+            for i in range(4):
+                self.machine_loadcurrents[node_index][i].update(new_text_string=params[5+i])
+                self.machine_percentageloads[node_index][i].update(new_text_string=params[9+i])
+                self.machine_status[node_index][i].update(new_text_string=Machine_State_ID_to_State[params[13+i]])
+                state_timestamp_tick = params[17+i]
+                if state_timestamp_tick != 0:
+                    # elapsed_time_in_state = self.servertimeofday_Tick - state_timestamp_tick
+                    good_time = datetime.datetime.fromtimestamp(state_timestamp_tick)
+                    exact_time_strings = ["{}:{}:{}".format(good_time.hour, good_time.minute, good_time.second), "{}/{}/{}".format(good_time.day, good_time.month, good_time.year)]
                 else:
-                    self.abnormalactivity_text[node_index].change_text_color(new_color='red')
-                machine_state_timestamps = []
-                for i in range(4):
-                    self.machine_loadcurrents[node_index][i].update(new_text_string=params[5+i])
-                    self.machine_percentageloads[node_index][i].update(new_text_string=params[9+i])
-                    self.machine_status[node_index][i].update(new_text_string=Machine_State_ID_to_State[params[13+i]])
-                    state_timestamp_tick = params[17+i]
-                    if state_timestamp_tick != 0:
-                        # elapsed_time_in_state = self.servertimeofday_Tick - state_timestamp_tick
-                        good_time = datetime.datetime.fromtimestamp(state_timestamp_tick)
-                        exact_time_strings = ["{}:{}:{}".format(good_time.hour, good_time.minute, good_time.second), "{}/{}/{}".format(good_time.day, good_time.month, good_time.year)]
-                    else:
-                        # elapsed_time_in_state = state_timestamp_tick
-                        exact_time_strings = ["0:0:0", "0/0/0"]
-                    machine_state_timestamps.append(exact_time_strings)
-                    self.machine_timeinstate[node_index][i].update(new_text_string=params[21+i])
-                    self.machine_sincewheninstate[node_index][i].update(new_text_strings=machine_state_timestamps[i])
-                    pass
-                # append this data to our CSV file
-                if self.csv_data_recording:
-                    # insertiontimestamp, node_id, node_uptime, activitylevel,
-                    # temperature, humidity,
-                    # M1_load, M1_load%, M1_state, M1_statetimestamp, M1_stateduration,
-                    # M2_*...
-                    server_time_of_the_day = datetime.datetime.fromtimestamp(self.servertimeofday_Tick)
-                    data_packet = [server_time_of_the_day, params[0], datetime.datetime.fromtimestamp(params[3]), activity_level,
-                                   params[1], params[2],
-                                   params[5], params[9], params[13], datetime.datetime.fromtimestamp(params[17]), params[21],
-                                   params[6], params[10], params[14], datetime.datetime.fromtimestamp(params[18]), params[22]]
-                    with open(self.csv_data_file+"-{}-{}-{}".format(server_time_of_the_day.day, server_time_of_the_day.month, server_time_of_the_day.year)+".csv",
-                              'a', newline="") as f:
-                        writer = csv.writer(f)
-                        writer.writerow(data_packet)
-                        pass
+                    # elapsed_time_in_state = state_timestamp_tick
+                    exact_time_strings = ["0:0:0", "0/0/0"]
+                machine_state_timestamps.append(exact_time_strings)
+                self.machine_timeinstate[node_index][i].update(new_text_string=params[21+i])
+                self.machine_sincewheninstate[node_index][i].update(new_text_strings=machine_state_timestamps[i])
+                pass
+            # append this data to our CSV file
+            if self.csv_data_recording:
+                # insertiontimestamp, node_id, node_uptime, activitylevel,
+                # temperature, humidity,
+                # M1_load, M1_load%, M1_state, M1_statetimestamp, M1_stateduration,
+                # M2_*...
+                server_time_of_the_day = datetime.datetime.fromtimestamp(self.servertimeofday_Tick)
+                data_packet = [server_time_of_the_day, params[0], datetime.datetime.fromtimestamp(params[3]), activity_level,
+                               params[1], params[2],
+                               params[5], params[9], params[13], datetime.datetime.fromtimestamp(params[17]), params[21],
+                               params[6], params[10], params[14], datetime.datetime.fromtimestamp(params[18]), params[22]]
+                with open(self.csv_data_file+"-{}-{}-{}".format(server_time_of_the_day.day, server_time_of_the_day.month, server_time_of_the_day.year)+".csv",
+                          'a', newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(data_packet)
                     pass
                 pass
             pass
