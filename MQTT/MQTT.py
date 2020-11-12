@@ -15,6 +15,8 @@ class MQTT:
         # for multiple nodes
         self.SSN_Network_Address_Mapping = {}
         self.SSN_Network_Nodes = list()
+        self.subscriptions = ["/SSN/"]
+        self.publications = ["/SSN/CONFIG"]
         pass
 
     # The callback for when the client receives a CONNACK response from the server.
@@ -23,14 +25,14 @@ class MQTT:
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
         # this is our status update channel for all nodes
-        client.subscribe("/SSN/")
+        client.subscribe(self.subscriptions[0])
         pass
 
     # The callback for when a PUBLISH message is received from the server.
     def on_message(self, _, __, in_message):
         # print(f"{msg.topic}: {msg.payload.decode('utf-8')}")
         # print(in_message.payload, in_message.qos, in_message.topic, in_message.retain)
-        message_id, params = self.decipher_node_message(in_message.payload)
+        message_id, params = self.decipher_node_message(node_message=in_message.payload)
         node_MAC_id = params[0]
         if node_MAC_id not in self.SSN_Network_Nodes:
             self.SSN_Network_Nodes.append(node_MAC_id)
@@ -73,9 +75,13 @@ class MQTT:
             temperature = utils.get_word_from_bytes(high_byte=node_message[3], low_byte=node_message[4]) / 10.0
             humidity = utils.get_word_from_bytes(high_byte=node_message[5], low_byte=node_message[6]) / 10.0
             state_flags = node_message[7]
-            print(state_flags)
             ssn_uptime = utils.get_int_from_bytes(highest_byte=node_message[56], higher_byte=node_message[57], high_byte=node_message[58], low_byte=node_message[59])
             abnormal_activity = node_message[60]
+            fault_count = None
+            try:
+                fault_count = node_message[61]
+            except:
+                print("(LOG): No Fault Count Received")
             # get machine specific information
             machine_load_currents, machine_load_percentages, machine_status, machine_state_timestamp, machine_state_duration = list(), list(), list(), list(), list()
             # print(node_message)
@@ -89,37 +95,37 @@ class MQTT:
                                                                        high_byte=node_message[18+i*offset], low_byte=node_message[19+i*offset]))
                 pass
             return node_message_id, [node_id, temperature, humidity, ssn_uptime, abnormal_activity, *machine_load_currents, *machine_load_percentages, *machine_status,
-                                     *machine_state_timestamp, *machine_state_duration]
+                                     *machine_state_timestamp, *machine_state_duration, fault_count]
         return
 
     def send_set_mac_message(self, mac_address):
         set_mac_message = construct_set_mac_message(mac_address=mac_address)
-        self.client.publish(topic="/SSN/CONFIG", payload=set_mac_message)
+        self.client.publish(topic=self.publications[0], payload=set_mac_message)
         pass
 
     def send_set_timeofday_message(self, current_time):
         set_timeofday_message = construct_set_timeofday_message(current_time=current_time)
-        self.client.publish(topic="/SSN/CONFIG", payload=set_timeofday_message)
+        self.client.publish(topic=self.publications[0], payload=set_timeofday_message)
         pass
 
     def send_set_timeofday_Tick_message(self, current_tick):
         set_timeofday_message = construct_set_timeofday_Tick_message(current_Tick=current_tick)
-        self.client.publish(topic="/SSN/CONFIG", payload=set_timeofday_message)
+        self.client.publish(topic=self.publications[0], payload=set_timeofday_message)
         pass
 
     def send_set_config_message(self, config):
         set_config_message = construct_set_config_message(config=config)
-        self.client.publish(topic="/SSN/CONFIG", payload=set_config_message)
+        self.client.publish(topic=self.publications[0], payload=set_config_message)
         pass
 
     def send_debug_reset_eeprom_message(self):
         debug_reset_eeprom_message = construct_debug_reset_eeprom_message()
-        self.client.publish(topic="/SSN/CONFIG", payload=debug_reset_eeprom_message)
+        self.client.publish(topic=self.publications[0], payload=debug_reset_eeprom_message)
         pass
 
     def send_debug_reset_ssn_message(self):
         debug_reset_ssn_message = construct_debug_reset_ssn_message()
-        self.client.publish(topic="/SSN/CONFIG", payload=debug_reset_ssn_message)
+        self.client.publish(topic=self.publications[0], payload=debug_reset_ssn_message)
         pass
 
     pass

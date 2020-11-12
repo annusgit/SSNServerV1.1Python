@@ -17,7 +17,7 @@ def main():
     # main_gui.setup_serial_communication(serial_port='COM29', baudrate=19200, log_file='serial_log.txt')
     # main_gui.setup_udp_communication(server_end=server_end)
     main_gui.setup_mqtt_communication(client_id="SSNSuperUser", host="192.168.0.120")
-    # main_gui.setup_csv_data_recording(csv_file="recording/recording.csv")
+    main_gui.setup_csv_data_recording(csv_file="recording/recording.csv")
     # start the main loop
     main_gui.start()
     pass

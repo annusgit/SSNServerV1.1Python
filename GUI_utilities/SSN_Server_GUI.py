@@ -432,7 +432,7 @@ class SSN_Server_UI():
         pass
 
     def setup_mqtt_communication(self, client_id, host="192.168.0.120"):
-        self.mqtt_comm = MQTT(client_id="SSNSuperUser", host="192.168.0.120")
+        self.mqtt_comm = MQTT(client_id=client_id, host=host)
         self.mqtt_comm.client.loop_start()
         self.use_mqtt = True
         # invoke it just once
@@ -515,6 +515,9 @@ class SSN_Server_UI():
                 self.abnormalactivity_text[node_index].change_text_color(new_color='green')
             else:
                 self.abnormalactivity_text[node_index].change_text_color(new_color='red')
+            fault_count = params[-1]
+            if fault_count is not None:
+                print('\033[34m' + "Fault Count from SSN-{}: {}".format(node_index+1, fault_count))
             machine_state_timestamps = []
             for i in range(4):
                 self.machine_loadcurrents[node_index][i].update(new_text_string=params[5+i])
