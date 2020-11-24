@@ -77,11 +77,8 @@ class MQTT:
             state_flags = node_message[7]
             ssn_uptime = utils.get_int_from_bytes(highest_byte=node_message[56], higher_byte=node_message[57], high_byte=node_message[58], low_byte=node_message[59])
             abnormal_activity = node_message[60]
-            fault_count = None
-            try:
-                fault_count = node_message[61]
-            except:
-                print("(LOG): No Fault Count Received")
+            # print(len(node_message))
+            fault_count = node_message[61]
             # get machine specific information
             machine_load_currents, machine_load_percentages, machine_status, machine_state_timestamp, machine_state_duration = list(), list(), list(), list(), list()
             # print(node_message)

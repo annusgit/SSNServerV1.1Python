@@ -545,7 +545,7 @@ class SSN_Server_UI():
                 data_packet = [server_time_of_the_day, params[0], datetime.datetime.fromtimestamp(params[3]), activity_level,
                                params[1], params[2],
                                params[5], params[9], params[13], datetime.datetime.fromtimestamp(params[17]), params[21],
-                               params[6], params[10], params[14], datetime.datetime.fromtimestamp(params[18]), params[22]]
+                               params[6], params[10], params[14], datetime.datetime.fromtimestamp(params[18]), params[22], fault_count]
                 with open(self.csv_data_file+"-{}-{}-{}".format(server_time_of_the_day.day, server_time_of_the_day.month, server_time_of_the_day.year)+".csv",
                           'a', newline="") as f:
                     writer = csv.writer(f)
